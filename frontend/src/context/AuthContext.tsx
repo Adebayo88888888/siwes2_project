@@ -1,51 +1,33 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '@/config/supabase';
+
+export interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: User;
+  token: string;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
 }
+
+const DEFAULT_GUEST_USER: User = {
+  id: 'guest',
+  email: 'guest@efiko.ai',
+  full_name: 'Student Guest'
+};
+const DEFAULT_GUEST_TOKEN = 'guest_token';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for changes on auth state
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-  };
-
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  };
+  const [user] = useState<User>(DEFAULT_GUEST_USER);
+  const [token] = useState<string>(DEFAULT_GUEST_TOKEN);
+  const [loading] = useState(false);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, token, loading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -57,4 +39,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-} 
+}

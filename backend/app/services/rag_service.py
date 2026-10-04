@@ -12,35 +12,40 @@ class RAGService:
     def __init__(self, db: SupabaseDB):
         self.db = db
 
-    async def process_document(self, file_content: str, user_id: str) -> Document:
-        # Extract text from file (assuming it's already text for now)
-        # TODO: Add support for different file types (PDF, DOCX, etc.)
-        
-        document = await self.db.add_document(
+    async def process_document(self, file_content: str, user_id: str, title: str = "Sample Document") -> Dict[str, Any]:
+        document = self.db.add_document(
             user_id=user_id,
-            title="Sample Document",  # TODO: Extract from file
+            title=title,
             content=file_content,
             source_type="file"
         )
 
         # Generate chunks and embeddings
         chunks = self._create_chunks(file_content)
-        await self.db.add_document_chunks(document["id"], chunks)
+        try:
+            self.db.add_document_chunks(document["id"], chunks)
+        except Exception as e:
+            print(f"Error adding chunks: {e}")
 
         return document
 
-    async def get_user_documents(self, user_id: str) -> List[Document]:
-        return await self.db.get_user_documents(user_id)
+    async def get_user_documents(self, user_id: str) -> List[Dict[str, Any]]:
+        try:
+            return self.db.get_user_documents(user_id)
+        except Exception:
+            return []
 
     async def search_similar_chunks(self, user_id: str, query: str) -> List[Dict[str, Any]]:
-        # Generate query embedding using sentence transformer
-        query_embedding = sentence_transformer.encode(query).tolist()
-        
-        return await self.db.search_similar_chunks(
-            user_id=user_id,
-            query_embedding=query_embedding,
-            limit=settings.max_search_results
-        )
+        try:
+            query_embedding = sentence_transformer.encode(query).tolist()
+            return self.db.search_similar_chunks(
+                user_id=user_id,
+                query_embedding=query_embedding,
+                limit=settings.max_search_results
+            )
+        except Exception as e:
+            print(f"Error searching chunks: {e}")
+            return []
 
     def _create_chunks(self, text: str, chunk_size: int = 1000) -> List[Dict[str, Any]]:
         # Split text into chunks
